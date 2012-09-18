@@ -27,7 +27,7 @@ instance Show Vertex where
     show a = "(" ++ show (vertexNode a) ++ "," ++ show (getPaths a) ++ ")"
 
 instance Eq Vertex where
-    (==) a b = (vertexNode a) == (vertexNode b)
+    (==) a b = vertexNode a == vertexNode b
 
 data Step = Step { currentVertex :: Vertex, getSteps :: [Vertex], visitted :: Set Vertex }
 
@@ -59,9 +59,9 @@ parsePath ss = Prelude.map p $ words ss
 -- >>> createVertex X [Path X Y, Path S X]
 -- (X,[X-W])
 createVertex :: Node -> [Path] -> Vertex
-createVertex n ps = Vertex n $ paths
+createVertex n ps = Vertex n paths
   where
-    paths = Prelude.map (\n2 -> Path (fst $ table) n2 ) (snd $ table)
+    paths = Prelude.map (Path n) $ snd table
     succ5 :: (Enum a) => a -> a
     succ5 = succ . succ . succ . succ . succ
 
@@ -73,11 +73,11 @@ createVertex n ps = Vertex n $ paths
       | n == E = (n, filterTable [pred n, succ5 n])
       | n == U = (n, filterTable [pred5 n, succ n])
       | n == Y = (n, filterTable [pred5 n, pred n])
-      | elem n [B,C,D] = (n, filterTable [pred n, succ n, succ5 n])
-      | elem n [G,H,I,L,M,N,Q,R,S] = (n, filterTable [pred5 n, pred n, succ n, succ5 n])
-      | elem n [F,K,P] = (n, filterTable [pred5 n, succ n, succ5 n])
-      | elem n [J,O,T] = (n, filterTable [pred5 n, pred n, succ5 n])
-      | elem n [V,W,X] = (n, filterTable [pred5 n, pred n, succ n])
+      | n `elem` [B,C,D] = (n, filterTable [pred n, succ n, succ5 n])
+      | n `elem` [G,H,I,L,M,N,Q,R,S] = (n, filterTable [pred5 n, pred n, succ n, succ5 n])
+      | n `elem` [F,K,P] = (n, filterTable [pred5 n, succ n, succ5 n])
+      | n `elem` [J,O,T] = (n, filterTable [pred5 n, pred n, succ5 n])
+      | n `elem` [V,W,X] = (n, filterTable [pred5 n, pred n, succ n])
       | otherwise = error "should not here"
     filterTable = Prelude.filter (\n2 -> notElem (Path n2 n) ps && notElem (Path n n2) ps)
 
@@ -87,12 +87,10 @@ createVertex n ps = Vertex n $ paths
 -- 8512
 nextStep :: [Path] -> Step -> [()]
 nextStep ps s = do p <- getPaths $ currentVertex s
-                   v <- return $ createVertex (pathTarget p) ps
+                   let v = createVertex (pathTarget p) ps
                    guard $ Data.Set.notMember v $ visitted s
-                   ns <- return $ Step v (v:getSteps s) (Data.Set.insert v $ visitted s)
-                   if vertexNode v == Y
-                     then do return ()
-                     else nextStep ps ns
+                   let ns = Step v (v:getSteps s) (Data.Set.insert v $ visitted s)
+                   unless (vertexNode v == Y) $ nextStep ps ns
 
 initStep :: [Path] -> Step
 initStep ps = let a = createVertex A ps
@@ -100,5 +98,5 @@ initStep ps = let a = createVertex A ps
 
 main :: IO ()
 main = do stopPaths <- parsePath <$> liftM head getArgs
-          s <- return $ nextStep stopPaths $ initStep stopPaths
-          putStrLn $ show $ length $ s
+          let s = nextStep stopPaths $ initStep stopPaths
+          print $ length s
